@@ -18,15 +18,19 @@ package com.google.common.collect;
 
 import com.google.common.annotations.GwtCompatible;
 import com.google.common.annotations.GwtIncompatible;
+import java.util.function.Consumer;
+import javax.annotation.CheckForNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An {@link ImmutableAsList} implementation specialized for when the delegate collection is
- * already backed by an {@code ImmutableList} or array.
+ * An {@link ImmutableAsList} implementation specialized for when the delegate collection is already
+ * backed by an {@code ImmutableList} or array.
  *
  * @author Louis Wasserman
  */
 @GwtCompatible(emulated = true)
 @SuppressWarnings("serial") // uses writeReplace, not default serialization
+@ElementTypesAreNonnullByDefault
 class RegularImmutableAsList<E> extends ImmutableAsList<E> {
   private final ImmutableCollection<E> delegate;
   private final ImmutableList<? extends E> delegateList;
@@ -49,16 +53,38 @@ class RegularImmutableAsList<E> extends ImmutableAsList<E> {
     return delegateList;
   }
 
-  @SuppressWarnings("unchecked")  // safe covariant cast!
+  @SuppressWarnings("unchecked") // safe covariant cast!
   @Override
   public UnmodifiableListIterator<E> listIterator(int index) {
     return (UnmodifiableListIterator<E>) delegateList.listIterator(index);
   }
 
-  @GwtIncompatible("not present in emulated superclass")
+  @GwtIncompatible // not present in emulated superclass
   @Override
-  int copyIntoArray(Object[] dst, int offset) {
+  public void forEach(Consumer<? super E> action) {
+    delegateList.forEach(action);
+  }
+
+  @GwtIncompatible // not present in emulated superclass
+  @Override
+  int copyIntoArray(@Nullable Object[] dst, int offset) {
     return delegateList.copyIntoArray(dst, offset);
+  }
+
+  @Override
+  @CheckForNull
+  Object[] internalArray() {
+    return delegateList.internalArray();
+  }
+
+  @Override
+  int internalArrayStart() {
+    return delegateList.internalArrayStart();
+  }
+
+  @Override
+  int internalArrayEnd() {
+    return delegateList.internalArrayEnd();
   }
 
   @Override

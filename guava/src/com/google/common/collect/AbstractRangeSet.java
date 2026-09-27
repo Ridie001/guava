@@ -14,13 +14,16 @@
 
 package com.google.common.collect;
 
-import javax.annotation.Nullable;
+import com.google.common.annotations.GwtIncompatible;
+import javax.annotation.CheckForNull;
 
 /**
  * A skeletal implementation of {@code RangeSet}.
  *
  * @author Louis Wasserman
  */
+@GwtIncompatible
+@ElementTypesAreNonnullByDefault
 abstract class AbstractRangeSet<C extends Comparable> implements RangeSet<C> {
   AbstractRangeSet() {}
 
@@ -30,6 +33,7 @@ abstract class AbstractRangeSet<C extends Comparable> implements RangeSet<C> {
   }
 
   @Override
+  @CheckForNull
   public abstract Range<C> rangeContaining(C value);
 
   @Override
@@ -46,7 +50,7 @@ abstract class AbstractRangeSet<C extends Comparable> implements RangeSet<C> {
   public void remove(Range<C> range) {
     throw new UnsupportedOperationException();
   }
-  
+
   @Override
   public void clear() {
     remove(Range.<C>all());
@@ -54,33 +58,29 @@ abstract class AbstractRangeSet<C extends Comparable> implements RangeSet<C> {
 
   @Override
   public boolean enclosesAll(RangeSet<C> other) {
-    for (Range<C> range : other.asRanges()) {
-      if (!encloses(range)) {
-        return false;
-      }
-    }
-    return true;
+    return enclosesAll(other.asRanges());
   }
 
   @Override
   public void addAll(RangeSet<C> other) {
-    for (Range<C> range : other.asRanges()) {
-      add(range);
-    }
+    addAll(other.asRanges());
   }
 
   @Override
   public void removeAll(RangeSet<C> other) {
-    for (Range<C> range : other.asRanges()) {
-      remove(range);
-    }
+    removeAll(other.asRanges());
+  }
+
+  @Override
+  public boolean intersects(Range<C> otherRange) {
+    return !subRangeSet(otherRange).isEmpty();
   }
 
   @Override
   public abstract boolean encloses(Range<C> otherRange);
 
   @Override
-  public boolean equals(@Nullable Object obj) {
+  public boolean equals(@CheckForNull Object obj) {
     if (obj == this) {
       return true;
     } else if (obj instanceof RangeSet) {

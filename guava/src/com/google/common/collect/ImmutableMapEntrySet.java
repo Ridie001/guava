@@ -18,11 +18,14 @@ package com.google.common.collect;
 
 import com.google.common.annotations.GwtCompatible;
 import com.google.common.annotations.GwtIncompatible;
-
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Map.Entry;
-
-import javax.annotation.Nullable;
+import java.util.Spliterator;
+import java.util.function.Consumer;
+import javax.annotation.CheckForNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code entrySet()} implementation for {@link ImmutableMap}.
@@ -31,7 +34,53 @@ import javax.annotation.Nullable;
  * @author Kevin Bourrillion
  */
 @GwtCompatible(emulated = true)
-abstract class ImmutableMapEntrySet<K, V> extends ImmutableSet<Entry<K, V>> {
+@ElementTypesAreNonnullByDefault
+abstract class ImmutableMapEntrySet<K, V> extends ImmutableSet.CachingAsList<Entry<K, V>> {
+  static final class RegularEntrySet<K, V> extends ImmutableMapEntrySet<K, V> {
+    private final transient ImmutableMap<K, V> map;
+    private final transient ImmutableList<Entry<K, V>> entries;
+
+    RegularEntrySet(ImmutableMap<K, V> map, Entry<K, V>[] entries) {
+      this(map, ImmutableList.<Entry<K, V>>asImmutableList(entries));
+    }
+
+    RegularEntrySet(ImmutableMap<K, V> map, ImmutableList<Entry<K, V>> entries) {
+      this.map = map;
+      this.entries = entries;
+    }
+
+    @Override
+    ImmutableMap<K, V> map() {
+      return map;
+    }
+
+    @Override
+    @GwtIncompatible("not used in GWT")
+    int copyIntoArray(@Nullable Object[] dst, int offset) {
+      return entries.copyIntoArray(dst, offset);
+    }
+
+    @Override
+    public UnmodifiableIterator<Entry<K, V>> iterator() {
+      return entries.iterator();
+    }
+
+    @Override
+    public Spliterator<Entry<K, V>> spliterator() {
+      return entries.spliterator();
+    }
+
+    @Override
+    public void forEach(Consumer<? super Entry<K, V>> action) {
+      entries.forEach(action);
+    }
+
+    @Override
+    ImmutableList<Entry<K, V>> createAsList() {
+      return new RegularImmutableAsList<>(this, entries);
+    }
+  }
+
   ImmutableMapEntrySet() {}
 
   abstract ImmutableMap<K, V> map();
@@ -42,7 +91,7 @@ abstract class ImmutableMapEntrySet<K, V> extends ImmutableSet<Entry<K, V>> {
   }
 
   @Override
-  public boolean contains(@Nullable Object object) {
+  public boolean contains(@CheckForNull Object object) {
     if (object instanceof Entry) {
       Entry<?, ?> entry = (Entry<?, ?>) object;
       V value = map().get(entry.getKey());
@@ -56,21 +105,40 @@ abstract class ImmutableMapEntrySet<K, V> extends ImmutableSet<Entry<K, V>> {
     return map().isPartialView();
   }
 
-  @GwtIncompatible("serialization")
   @Override
-  Object writeReplace() {
-    return new EntrySetSerializedForm<K, V>(map());
+  @GwtIncompatible // not used in GWT
+  boolean isHashCodeFast() {
+    return map().isHashCodeFast();
   }
 
-  @GwtIncompatible("serialization")
+  @Override
+  public int hashCode() {
+    return map().hashCode();
+  }
+
+  @GwtIncompatible // serialization
+  @Override
+  Object writeReplace() {
+    return new EntrySetSerializedForm<>(map());
+  }
+
+  @GwtIncompatible // serialization
+  private void readObject(ObjectInputStream stream) throws InvalidObjectException {
+    throw new InvalidObjectException("Use EntrySetSerializedForm");
+  }
+
+  @GwtIncompatible // serialization
   private static class EntrySetSerializedForm<K, V> implements Serializable {
     final ImmutableMap<K, V> map;
+
     EntrySetSerializedForm(ImmutableMap<K, V> map) {
       this.map = map;
     }
+
     Object readResolve() {
       return map.entrySet();
     }
+
     private static final long serialVersionUID = 0;
   }
 }

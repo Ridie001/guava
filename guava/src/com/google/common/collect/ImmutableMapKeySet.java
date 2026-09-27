@@ -16,13 +16,14 @@
 
 package com.google.common.collect;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.annotations.GwtCompatible;
 import com.google.common.annotations.GwtIncompatible;
-
 import java.io.Serializable;
-import java.util.Map.Entry;
-
-import javax.annotation.Nullable;
+import java.util.Spliterator;
+import java.util.function.Consumer;
+import javax.annotation.CheckForNull;
 
 /**
  * {@code keySet()} implementation for {@link ImmutableMap}.
@@ -31,7 +32,8 @@ import javax.annotation.Nullable;
  * @author Kevin Bourrillion
  */
 @GwtCompatible(emulated = true)
-final class ImmutableMapKeySet<K, V> extends ImmutableSet<K> {
+@ElementTypesAreNonnullByDefault
+final class ImmutableMapKeySet<K, V> extends IndexedImmutableSet<K> {
   private final ImmutableMap<K, V> map;
 
   ImmutableMapKeySet(ImmutableMap<K, V> map) {
@@ -45,30 +47,28 @@ final class ImmutableMapKeySet<K, V> extends ImmutableSet<K> {
 
   @Override
   public UnmodifiableIterator<K> iterator() {
-    return asList().iterator();
+    return map.keyIterator();
   }
 
   @Override
-  public boolean contains(@Nullable Object object) {
+  public Spliterator<K> spliterator() {
+    return map.keySpliterator();
+  }
+
+  @Override
+  public boolean contains(@CheckForNull Object object) {
     return map.containsKey(object);
   }
 
   @Override
-  ImmutableList<K> createAsList() {
-    final ImmutableList<Entry<K, V>> entryList = map.entrySet().asList();
-    return new ImmutableAsList<K>() {
+  K get(int index) {
+    return map.entrySet().asList().get(index).getKey();
+  }
 
-      @Override
-      public K get(int index) {
-        return entryList.get(index).getKey();
-      }
-
-      @Override
-      ImmutableCollection<K> delegateCollection() {
-        return ImmutableMapKeySet.this;
-      }
-
-    };
+  @Override
+  public void forEach(Consumer<? super K> action) {
+    checkNotNull(action);
+    map.forEach((k, v) -> action.accept(k));
   }
 
   @Override
@@ -76,20 +76,20 @@ final class ImmutableMapKeySet<K, V> extends ImmutableSet<K> {
     return true;
   }
 
-  @GwtIncompatible("serialization")
-  @Override Object writeReplace() {
-    return new KeySetSerializedForm<K>(map);
-  }
-
-  @GwtIncompatible("serialization")
+  // No longer used for new writes, but kept so that old data can still be read.
+  @GwtIncompatible // serialization
+  @SuppressWarnings("unused")
   private static class KeySetSerializedForm<K> implements Serializable {
     final ImmutableMap<K, ?> map;
+
     KeySetSerializedForm(ImmutableMap<K, ?> map) {
       this.map = map;
     }
+
     Object readResolve() {
       return map.keySet();
     }
+
     private static final long serialVersionUID = 0;
   }
 }

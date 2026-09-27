@@ -18,13 +18,14 @@ package com.google.common.collect;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.Serializable;
 import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-
-import javax.annotation.Nullable;
+import java.util.Spliterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * GWT emulated version of {@link ImmutableCollection}.
@@ -32,11 +33,12 @@ import javax.annotation.Nullable;
  * @author Jesse Wilson
  */
 @SuppressWarnings("serial") // we're overriding default serialization
-public abstract class ImmutableCollection<E> extends AbstractCollection<E>
-    implements Serializable {
+public abstract class ImmutableCollection<E> extends AbstractCollection<E> implements Serializable {
+  static final int SPLITERATOR_CHARACTERISTICS =
+      Spliterator.IMMUTABLE | Spliterator.NONNULL | Spliterator.ORDERED;
 
-  static final ImmutableCollection<Object> EMPTY_IMMUTABLE_COLLECTION
-      = new ForwardingImmutableCollection<Object>(Collections.emptyList());
+  static final ImmutableCollection<Object> EMPTY_IMMUTABLE_COLLECTION =
+      new ForwardingImmutableCollection<Object>(Collections.emptyList());
 
   ImmutableCollection() {}
 
@@ -87,6 +89,28 @@ public abstract class ImmutableCollection<E> extends AbstractCollection<E>
         return new RegularImmutableAsList<E>(this, toArray());
     }
   }
+
+  /** If this collection is backed by an array of its elements in insertion order, returns it. */
+  Object @Nullable [] internalArray() {
+    return null;
+  }
+
+  /**
+   * If this collection is backed by an array of its elements in insertion order, returns the offset
+   * where this collection's elements start.
+   */
+  int internalArrayStart() {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
+   * If this collection is backed by an array of its elements in insertion order, returns the offset
+   * where this collection's elements end.
+   */
+  int internalArrayEnd() {
+    throw new UnsupportedOperationException();
+  }
+
   static <E> ImmutableCollection<E> unsafeDelegate(Collection<E> delegate) {
     return new ForwardingImmutableCollection<E>(delegate);
   }
@@ -95,15 +119,31 @@ public abstract class ImmutableCollection<E> extends AbstractCollection<E>
     return false;
   }
 
-  /**
-   * GWT emulated version of {@link ImmutableCollection.Builder}.
-   */
+  /** GWT emulated version of {@link ImmutableCollection.Builder}. */
   public abstract static class Builder<E> {
 
     Builder() {}
 
+    static int expandedCapacity(int oldCapacity, int minCapacity) {
+      if (minCapacity < 0) {
+        throw new AssertionError("cannot store more than MAX_VALUE elements");
+      }
+      // careful of overflow!
+      int newCapacity = oldCapacity + (oldCapacity >> 1) + 1;
+      if (newCapacity < minCapacity) {
+        newCapacity = Integer.highestOneBit(minCapacity - 1) << 1;
+      }
+      if (newCapacity < 0) {
+        newCapacity = Integer.MAX_VALUE;
+        // guaranteed to be >= newCapacity
+      }
+      return newCapacity;
+    }
+
+    @CanIgnoreReturnValue
     public abstract Builder<E> add(E element);
 
+    @CanIgnoreReturnValue
     public Builder<E> add(E... elements) {
       checkNotNull(elements); // for GWT
       for (E element : elements) {
@@ -112,6 +152,7 @@ public abstract class ImmutableCollection<E> extends AbstractCollection<E>
       return this;
     }
 
+    @CanIgnoreReturnValue
     public Builder<E> addAll(Iterable<? extends E> elements) {
       checkNotNull(elements); // for GWT
       for (E element : elements) {
@@ -120,6 +161,7 @@ public abstract class ImmutableCollection<E> extends AbstractCollection<E>
       return this;
     }
 
+    @CanIgnoreReturnValue
     public Builder<E> addAll(Iterator<? extends E> elements) {
       checkNotNull(elements); // for GWT
       while (elements.hasNext()) {

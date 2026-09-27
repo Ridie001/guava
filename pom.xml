@@ -4,42 +4,42 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.sonatype.oss</groupId>
-    <artifactId>oss-parent</artifactId>
-    <version>7</version>
-  </parent>
   <groupId>com.google.guava</groupId>
   <artifactId>guava-parent</artifactId>
-  <version>18.0-SNAPSHOT</version>
+  <version>HEAD-jre-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Guava Maven Parent</name>
-  <url>http://code.google.com/p/guava-libraries</url>
+  <description>Parent for guava artifacts</description>
+  <url>https://github.com/google/guava</url>
   <properties>
-    <gpg.skip>true</gpg.skip>
     <!-- Override this with -Dtest.include="**/SomeTest.java" on the CLI -->
-    <test.include>**/*Test.java</test.include>
-    <truth.version>1.0-SNAPSHOT</truth.version>
+    <test.include>%regex[.*.class]</test.include>
+    <truth.version>1.1.2</truth.version>
+    <checker-framework.version>3.12.0</checker-framework.version>
+    <animal.sniffer.version>1.20</animal.sniffer.version>
+    <maven-javadoc-plugin.version>3.1.0</maven-javadoc-plugin.version>
+    <!-- Empty for all JDKs but 9-12 -->
+    <maven-javadoc-plugin.additionalJOptions></maven-javadoc-plugin.additionalJOptions>
+    <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <test.add.opens></test.add.opens>
   </properties>
   <issueManagement>
-    <system>code.google.com</system>
-    <url>http://code.google.com/p/guava-libraries/issues</url>
+    <system>GitHub Issues</system>
+    <url>https://github.com/google/guava/issues</url>
   </issueManagement>
   <inceptionYear>2010</inceptionYear>
   <licenses>
     <license>
-      <name>The Apache Software License, Version 2.0</name>
+      <name>Apache License, Version 2.0</name>
       <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
       <distribution>repo</distribution>
     </license>
   </licenses>
-  <prerequisites>
-    <maven>3.0.3</maven>
-  </prerequisites>
   <scm>
-    <connection>scm:git:https://code.google.com/p/guava-libraries/</connection>
-    <developerConnection>scm:git:https://code.google.com/p/guava-libraries/</developerConnection>
-    <url>http://code.google.com/p/guava-libraries/source/browse</url>
+    <connection>scm:git:https://github.com/google/guava.git</connection>
+    <developerConnection>scm:git:git@github.com:google/guava.git</developerConnection>
+    <url>https://github.com/google/guava</url>
   </scm>
   <developers>
     <developer>
@@ -55,8 +55,13 @@
       <timezone>-8</timezone>
     </developer>
   </developers>
+  <ciManagement>
+    <system>GitHub Actions</system>
+    <url>https://github.com/google/guava/actions</url>
+  </ciManagement>
   <modules>
     <module>guava</module>
+    <module>guava-bom</module>
     <module>guava-gwt</module>
     <module>guava-testlib</module>
     <module>guava-tests</module>
@@ -70,6 +75,7 @@
         <directory>src</directory>
         <excludes>
           <exclude>**/*.java</exclude>
+          <exclude>**/*.sw*</exclude>
         </excludes>
       </resource>
     </resources>
@@ -81,42 +87,61 @@
         </excludes>
       </testResource>
     </testResources>
-
     <plugins>
       <plugin>
-        <artifactId>maven-gpg-plugin</artifactId>
-        <version>1.4</version>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
         <executions>
           <execution>
-            <id>sign-artifacts</id>
-            <phase>verify</phase>
-            <goals><goal>sign</goal></goals>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>3.0.5</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>1.8.0</version>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>${maven-javadoc-plugin.version}</version>
       </plugin>
     </plugins>
     <pluginManagement>
       <plugins>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>2.3.2</version>
+          <version>3.8.1</version>
           <configuration>
-            <source>1.6</source>
-            <target>1.6</target>
+            <source>1.8</source>
+            <target>1.8</target>
+            <compilerArgs>
+              <!--
+                   Make includes/excludes fully work:
+                   https://issues.apache.org/jira/browse/MCOMPILER-174
+
+                   (Compare what guava-gwt has to do for maven-javadoc-plugin.)
+              -->
+              <arg>-sourcepath</arg>
+              <arg>doesnotexist</arg>
+            </compilerArgs>
           </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>2.3.1</version>
-          <configuration>
-            <excludes>
-              <exclude>**/ForceGuavaCompilation*</exclude>
-            </excludes>
-          </configuration>
+          <version>3.2.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-source-plugin</artifactId>
-          <version>2.1.2</version>
+          <version>${maven-source-plugin.version}</version>
           <executions>
             <execution>
               <id>attach-sources</id>
@@ -124,26 +149,22 @@
               <goals><goal>jar</goal></goals>
             </execution>
           </executions>
-          <configuration>
-            <excludes>
-              <exclude>**/ForceGuavaCompilation*</exclude>
-            </excludes>
-          </configuration>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>animal-sniffer-maven-plugin</artifactId>
-          <version>1.7</version>
+          <version>${animal.sniffer.version}</version>
           <configuration>
+            <checkTestClasses>true</checkTestClasses>
             <signature>
               <groupId>org.codehaus.mojo.signature</groupId>
-              <artifactId>java16-sun</artifactId>
+              <artifactId>java18</artifactId>
               <version>1.0</version>
             </signature>
           </configuration>
           <executions>
             <execution>
-              <id>check-java16-sun</id>
+              <id>check-java-version-compatibility</id>
               <phase>test</phase>
               <goals>
                 <goal>check</goal>
@@ -153,9 +174,20 @@
         </plugin>
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.8</version>
+          <version>${maven-javadoc-plugin.version}</version>
           <configuration>
-            <stylesheetfile>javadoc-stylesheet.css</stylesheetfile>
+            <quiet>true</quiet>
+            <notimestamp>true</notimestamp>
+            <encoding>UTF-8</encoding>
+            <docencoding>UTF-8</docencoding>
+            <charset>UTF-8</charset>
+            <additionalOptions>
+              <additionalOption>-XDignore.symbol.file</additionalOption>
+              <additionalOption>-Xdoclint:-html</additionalOption>
+            </additionalOptions>
+            <linksource>true</linksource>
+            <source>8</source>
+            <additionalJOption>${maven-javadoc-plugin.additionalJOptions}</additionalJOption>
           </configuration>
           <executions>
             <execution>
@@ -167,7 +199,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.3</version>
+          <version>3.1.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
@@ -180,12 +212,41 @@
             <includes>
               <include>${test.include}</include>
             </includes>
+            <!-- By having our own entries here, we also override the default exclusion filter, which excludes all nested classes. -->
+            <excludes>
+              <!-- https://github.com/google/guava/issues/2840 -->
+              <exclude>%regex[.*PackageSanityTests.*.class]</exclude>
+              <!-- FeatureUtilTest.*ExampleDerivedInterfaceTester, com.google.common.io.*Tester, incidentally FeatureSpecificTestSuiteBuilderTest.MyAbstractTester (but we don't care either way because it's not meant to run on its own but works OK if it does)... but not NullPointerTesterTest, etc. -->
+              <exclude>%regex[.*Tester.class]</exclude>
+              <!-- Anonymous TestCase subclasses in GeneratedMonitorTest -->
+              <exclude>%regex[.*[$]\d+.class]</exclude>
+            </excludes>
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <runOrder>alphabetical</runOrder>
+            <!-- Set max heap for tests. -->
+            <!-- Catch dependencies on the default locale by setting it to hi-IN. -->
+            <argLine>-Xmx1536M -Duser.language=hi -Duser.country=IN ${test.add.opens}</argLine>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>3.0.0-M3</version>
         </plugin>
       </plugins>
     </pluginManagement>
   </build>
   <distributionManagement>
+    <snapshotRepository>
+      <id>sonatype-nexus-snapshots</id>
+      <name>Sonatype Nexus Snapshots</name>
+      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+    </snapshotRepository>
+    <repository>
+      <id>sonatype-nexus-staging</id>
+      <name>Nexus Release Repository</name>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
     <site>
       <id>guava-site</id>
       <name>Guava Documentation Site</name>
@@ -197,24 +258,51 @@
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
-        <version>1.3.9</version>
+        <version>3.0.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.checkerframework</groupId>
+        <artifactId>checker-qual</artifactId>
+        <version>${checker-framework.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.checkerframework</groupId>
+        <artifactId>checker-qual</artifactId>
+        <version>${checker-framework.version}</version>
+        <classifier>sources</classifier>
+      </dependency>
+      <dependency>
+        <groupId>com.google.errorprone</groupId>
+        <artifactId>error_prone_annotations</artifactId>
+        <version>2.11.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.j2objc</groupId>
+        <artifactId>j2objc-annotations</artifactId>
+        <version>1.3</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <version>4.8.2</version>
+        <version>4.13.2</version>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.easymock</groupId>
         <artifactId>easymock</artifactId>
-        <version>3.0</version>
+        <version>4.3</version>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>1.8.5</version>
+        <version>3.9.0</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.jimfs</groupId>
+        <artifactId>jimfs</artifactId>
+        <version>1.2</version>
         <scope>test</scope>
       </dependency>
       <dependency>
@@ -231,9 +319,22 @@
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>com.google.truth.extensions</groupId>
+        <artifactId>truth-java8-extension</artifactId>
+        <version>${truth.version}</version>
+        <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <!-- use the guava we're building. -->
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
         <groupId>com.google.caliper</groupId>
         <artifactId>caliper</artifactId>
-        <version>0.5-rc1</version>
+        <version>1.0-beta-2</version>
         <scope>test</scope>
         <exclusions>
           <exclusion>
@@ -245,4 +346,93 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+  <profiles>
+    <profile>
+        <id>sonatype-oss-release</id>
+        <build>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-source-plugin</artifactId>
+              <version>${maven-source-plugin.version}</version>
+              <executions>
+                <execution>
+                  <id>attach-sources</id>
+                  <goals>
+                    <goal>jar-no-fork</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-javadoc-plugin</artifactId>
+              <version>${maven-javadoc-plugin.version}</version>
+                <executions>
+                  <execution>
+                    <id>attach-javadocs</id>
+                    <goals>
+                      <goal>jar</goal>
+                    </goals>
+                </execution>
+              </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-gpg-plugin</artifactId>
+              <version>3.0.1</version>
+              <executions>
+                <execution>
+                  <id>sign-artifacts</id>
+                  <phase>verify</phase>
+                  <goals>
+                    <goal>sign</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!--
+          Passes JDK 9-12-specific `no-module-directories` flag to Javadoc tool,
+          which is required to make symbol search work correctly in the generated
+          pages.
+
+          This flag does not exist on 8 and 13+ (https://bugs.openjdk.java.net/browse/JDK-8215582).
+
+          Consider removing it once our release and test scripts are migrated to a recent JDK (17+).
+       -->
+      <id>javadocs-jdk9-12</id>
+      <activation>
+        <jdk>[9,13)</jdk>
+      </activation>
+      <properties>
+        <maven-javadoc-plugin.additionalJOptions>--no-module-directories</maven-javadoc-plugin.additionalJOptions>
+      </properties>
+    </profile>
+    <profile>
+      <id>open-jre-modules</id>
+      <activation>
+        <jdk>[9,]</jdk>
+      </activation>
+      <properties>
+        <!--
+            Some tests need reflective access to the internals of these packages. It is ony the
+            tests themselves and not the code being tested that needs that access, though there's no
+            obvious way to ensure that.
+
+            We could consider arranging things so that only the tests we know need this would get
+            the add-opens. Right now that doesn't seem worth the effort, though.
+        -->
+        <test.add.opens>
+          --add-opens java.base/java.lang=ALL-UNNAMED
+          --add-opens java.base/java.util=ALL-UNNAMED
+          --add-opens java.base/java.util.concurrent.locks=ALL-UNNAMED
+          --add-opens java.base/sun.security.jca=ALL-UNNAMED
+        </test.add.opens>
+      </properties>
+    </profile>
+  </profiles>
 </project>
